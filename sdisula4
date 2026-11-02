@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda Kegiatan Sekolah - SD Islam Sultan Agung 4 Semarang</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        sula: {
+                            blue: '#0e4a86',
+                            light: '#1e68b3',
+                            accent: '#d97706',
+                            gold: '#f59e0b',
+                            dark: '#0a325c'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- html2pdf for Client-side PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; color: black; }
+        }
+        /* Custom scrollbar for responsive tables */
+        .table-container::-webkit-scrollbar {
+            height: 6px;
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col text-slate-800">
+
+    <!-- Firebase App Configuration Scripts (Module) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Configuration setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'sula4-agenda-2026';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : {
+                apiKey: "demo-api-key",
+                authDomain: "demo-app.firebaseapp.com",
+                projectId: "demo-app",
+                storageBucket: "demo-app.appspot.com",
+                messagingSenderId: "123456789",
+                appId: "1:123456789:web:123456"
+            };
+
+        // Initialize Firebase
+        let app, db, auth;
+        let isFirebaseAvailable = false;
+
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            isFirebaseAvailable = true;
+        } catch (e) {
+            console.warn("Firebase initialized in Local Fallback mode due to configuration setup.", e);
+        }
+
+        // Global State Window Attachments for Plain JS interactions
+        window.SULA_APP = {
+            appId,
+            db,
+            auth,
+            isFirebaseAvailable,
+            currentUser: null,
+            publishedData: null,
+            draftData: null,
+            isAdmin: false,
+            activeTab: 'OKTOBER',
+            filterClass: 'ALL',
+            searchQuery: '',
+            
+            // Initial Seed Data
+            initialData: {
+                schoolYear: '2026/2027',
+                periods: ['OKTOBER', 'NOVEMBER', 'DESEMBER–JANUARI'],
+                agendas: {
+                    'OKTOBER': [
+                        { id: '1', no: '1', tgl: '1', kegiatan: 'Hari Kesaktian Pancasila', keterangan: 'Apel Pagi dan edukasi', kelas: '4-6' },
+                        { id: '2', no: '2', tgl: '2', kegiatan: 'Hari Batik', keterangan: 'Batik Art Mosaic, dan Batik style Up Challenge', kelas: '1-3 / 4-6' },
+                        { id: '3', no: '3', tgl: '6', kegiatan: 'Simulasi ASSIK', keterangan: 'Asesmen Standar Siswa Kota Semarang', kelas: '6' },
+                        { id: '4', no: '4', tgl: '12-13', kegiatan: 'Pelaksanaan ASSIK', keterangan: '', kelas: '6' },
+                        { id: '5', no: '5', tgl: '16', kegiatan: 'Penerimaan Raport ASTS 1', keterangan: 'Siswa Belajar di rumah ( Tugas Project Kokurikuler)', kelas: '1-6' },
+                        { id: '6', no: '6', tgl: '19', kegiatan: 'Foto Raport dan Ijazah', keterangan: '', kelas: '1 dan 6' },
+                        { id: '7', no: '7', tgl: '19-30', kegiatan: 'SSA', keterangan: 'Sulapat Smart Asesmen', kelas: '1-6' },
+                        { id: '8', no: '8', tgl: '22', kegiatan: 'Hari Santri', keterangan: 'Kunjungan Ke Ponpes Al Itqon, Bugen', kelas: '1-6' },
+                        { id: '9', no: '', tgl: '', kegiatan: '', keterangan: 'Lomba COC di Perpus Unissula (Perwakilan Siswa Yang ditunjuk)', kelas: '5' },
+                        { id: '10', no: '9', tgl: '23', kegiatan: 'Pra Asesmen Sulapat Mandiri dan Pembuatan Buku (SKA)', keterangan: 'Sulapat Mandiri dan Sulapat Kid Authors', kelas: '1-6' },
+                        { id: '11', no: '10', tgl: '28', kegiatan: 'Sumpah Pemuda', keterangan: 'Apel ( baju adat)', kelas: '4-6' },
+                        { id: '12', no: '', tgl: '', kegiatan: '', keterangan: 'Word Adventure', kelas: '1-6' }
+                    ],
+                    'NOVEMBER': [
+                        { id: '13', no: '1', tgl: '4', kegiatan: 'Manasik Haji', keterangan: 'Gabungan TK-SD 1-4 di FZ', kelas: '5' },
+                        { id: '14', no: '2', tgl: '5-6', kegiatan: 'Bazaar persiapan Hari Pahlawan', keterangan: '', kelas: '' },
+                        { id: '15', no: '3', tgl: '10', kegiatan: 'Pahlawan', keterangan: 'Lomba Fashion Shaw ( Bazaar sebelum hari H)', kelas: '1-6' },
+                        { id: '16', no: '3', tgl: '23-26', kegiatan: 'Uji Tahfidz', keterangan: 'Sesuai Jadwal dan taerget Surat', kelas: '1-5' },
+                        { id: '17', no: '4', tgl: '25', kegiatan: 'Hari Guru', keterangan: 'Parent teaching ( adab bertamu) dan peringatan hari guru', kelas: '1-6' },
+                        { id: '18', no: '5', tgl: '30Nov –7 Des', kegiatan: 'ASAS1', keterangan: 'Asesmen Sumatif Akhir Semester 1', kelas: '1-6' }
+                    ],
+                    'DESEMBER–JANUARI': [
+                        { id: '19', no: '1', tgl: '30 Nov – 7 Des', kegiatan: 'ASAS1', keterangan: 'Asesmen Sumatif Akhir Semester 1', kelas: '1-6' },
+                        { id: '20', no: '2', tgl: '9', kegiatan: 'Study Tour', keterangan: '', kelas: '6' },
+                        { id: '21', no: '3', tgl: '18', kegiatan: 'Puncak Karya dan Pembagian Raport', keterangan: 'Penampilan kreativitas siswa dan pembagian raport Semester 1', kelas: '1-6' },
+                        { id: '22', no: '4', tgl: '19 Des – 2 Januari 2028', kegiatan: 'LIBUR SEMESTER 1', keterangan: 'Libur Semester 1', kelas: '' },
+                        { id: '23', no: '5', tgl: '4 januari', kegiatan: 'KBM Semester 2', keterangan: 'Kegiatan Belajar Mengajar Semester 2', kelas: '' }
+                    ]
+                },
+                nb: {
+                    'OKTOBER': [
+                        "Hari Santri siswa masuk pukul 12.30 ( Paginya Daring), memakaisarung peci, sandal, muslim lengan panjang nuansa putih, jilbab senin.",
+                        "Armada Hari Santri di tanggung kas kelas",
+                        "Hari Sumpah Pemuda Memakai Baju adat , bagi yan tidak punya memakai batik bebas."
+                    ],
+                    'NOVEMBER': [
+                        "Kontribusi Manasik palin lambat tanggal 28 Oktober 2026",
+                        "Pembayaran Melalui Wali Kelas.",
+                        "Bazaar ( Dari Luar) untuk kegiatan Lomba Fashion Shaw Hari Pahlawan ( Hadiah,dll)",
+                        "Hari 1 bazzar dari dalam sekolah (korlas/wali murid)",
+                        "Hari 2 bazar dari Luar",
+                        "Perwakilan Lomba fashion Shaw Perkelas 1 Putra, Putri",
+                        "Kejuaraan kelas 1-3 dan 4-6",
+                        "Kejuaraan 1,2,dan 3 ( Piala+Uang Pembinaan ), juara 4,5,dan 6 (Piala+GodeBag)",
+                        "Harga Stand 100 rb untuk warga sekolah",
+                        "Subsidi utk sewa kostum bagi siswa yang mewakili @50k",
+                        "Hari Guru (Parent Teaching), materi adab bertamu",
+                        "Hari Guru (hadiah) tidak diperkenankan, kecuali kesepakatan untuk semua kelas.Tidk diperkenankan memberi secara pribadi.",
+                        "Hari Guru, guru memakai seragam merah putih, komite dan korlas memakai baju hitam putih, jilbab hitam."
+                    ],
+                    'DESEMBER–JANUARI': [
+                        "Harap memperhatikan tanggal kepulangan dan awal masuk KBM Semester 2."
+                    ]
+                },
+                lainLain: [
+                    "Pengharum Ruangan Sudah disediakan sekolah ( spary)",
+                    "Kerusakan tenggung jawab kelas ( wajib mengganti)",
+                    "Selanjutnya Isi ulang dan baterai menggunakan kas kelas",
+                    "Isi ulang gallon,tissue, spray pewangi, disediakan sekolah ( diganti kas kelas).",
+                    "Mencongak ( aman)"
+                ]
+            }
+        };
+
+        // Firebase Auth Initialization & Realtime Listeners
+        async function initAuthAndData() {
+            if (!isFirebaseAvailable) {
+                // Fallback Local Storage Mode
+                loadLocalData();
+                renderApp();
+                return;
+            }
+
+            try {
+                // Auth check
+                const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (authToken) {
+                    await signInWithCustomToken(auth, authToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                // Setup Firestore Realtime Sync
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'agendaData', 'main');
+                
+                onSnapshot(docRef, (snapshot) => {
+                    if (snapshot.exists()) {
+                        const data = snapshot.data();
+                        window.SULA_APP.publishedData = data.published || window.SULA_APP.initialData;
+                        window.SULA_APP.draftData = data.draft || JSON.parse(JSON.stringify(window.SULA_APP.publishedData));
+                    } else {
+                        // Seed database first time
+                        const init = window.SULA_APP.initialData;
+                        window.SULA_APP.publishedData = init;
+                        window.SULA_APP.draftData = JSON.parse(JSON.stringify(init));
+                        setDoc(docRef, { published: init, draft: init }).catch(console.error);
+                    }
+                    renderApp();
+                }, (error) => {
+                    console.error("Firestore error fallback to local state:", error);
+                    loadLocalData();
+                    renderApp();
+                });
+
+            } catch (err) {
+                console.warn("Auth/Firestore connection failed. Running in standalone local mode.", err);
+                loadLocalData();
+                renderApp();
+            }
+        }
+
+        function loadLocalData() {
+            const saved = localStorage.getItem('sula4_agenda_data');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    window.SULA_APP.publishedData = parsed.published;
+                    window.SULA_APP.draftData = parsed.draft;
+                } catch(e) {
+                    window.SULA_APP.publishedData = window.SULA_APP.initialData;
+                    window.SULA_APP.draftData = JSON.parse(JSON.stringify(window.SULA_APP.initialData));
+                }
+            } else {
+                window.SULA_APP.publishedData = window.SULA_APP.initialData;
+                window.SULA_APP.draftData = JSON.parse(JSON.stringify(window.SULA_APP.initialData));
+            }
+        }
+
+        // Execute initialization when document ready
+        document.addEventListener('DOMContentLoaded', () => {
+            initAuthAndData();
+        });
+    </script>
+
+    <!-- HEADER BAR -->
+    <header class="bg-sula-blue text-white shadow-lg sticky top-0 z-30 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <!-- LOGO RESMI SD ISLAM SULTAN AGUNG 4 SEMARANG (SVG Presisi) -->
+                <div class="bg-white p-1 rounded-full shadow border-2 border-amber-400 w-12 h-12 flex items-center justify-center shrink-0">
+                    <svg viewBox="0 0 500 500" class="w-full h-full">
+                        <!-- Outer Shield Pentagram Shape -->
+                        <polygon points="250,30 350,110 480,195 430,320 380,450 250,490 120,450 70,320 20,195 150,110" fill="#1e1e1e" stroke="#f59e0b" stroke-width="14" stroke-linejoin="round"/>
+                        <polygon points="250,45 342,118 462,196 416,312 370,432 250,468 130,432 84,312 38,196 158,118" fill="#1e1e1e" stroke="#1e1e1e" stroke-width="4"/>
+                        <!-- Green Arch Line -->
+                        <path d="M 125,320 A 130,130 0 0,1 375,320" fill="none" stroke="#22c55e" stroke-width="12" stroke-linecap="round"/>
+                        <path d="M 125,320 L 375,320" fill="none" stroke="#22c55e" stroke-width="8"/>
+                        <!-- Green Tasbih Beads below Arch -->
+                        <circle cx="170" cy="335" r="14" fill="none" stroke="#22c55e" stroke-width="7"/>
+                        <circle cx="210" cy="340" r="14" fill="none" stroke="#22c55e" stroke-width="7"/>
+                        <circle cx="250" cy="345" r="22" fill="none" stroke="#22c55e" stroke-width="9"/>
+                        <circle cx="290" cy="340" r="14" fill="none" stroke="#22c55e" stroke-width="7"/>
+                        <circle cx="330" cy="335" r="14" fill="none" stroke="#22c55e" stroke-width="7"/>
+                        <!-- Al-Qur'an Book Icon -->
+                        <path d="M 250,290 C 210,245 160,240 160,240 L 160,190 C 160,190 210,195 250,230 C 290,195 340,190 340,190 L 340,240 C 340,240 290,245 250,290 Z" fill="#ffffff" stroke="#1e1e1e" stroke-width="3"/>
+                        <path d="M 250,230 L 250,290" stroke="#1e1e1e" stroke-width="4"/>
+                        <!-- Quran Page Lines -->
+                        <line x1="175" y1="205" x2="235" y2="218" stroke="#1e1e1e" stroke-width="3" stroke-dasharray="6,4"/>
+                        <line x1="175" y1="220" x2="235" y2="233" stroke="#1e1e1e" stroke-width="3" stroke-dasharray="6,4"/>
+                        <line x1="175" y1="235" x2="235" y2="248" stroke="#1e1e1e" stroke-width="3" stroke-dasharray="6,4"/>
+                        <line x1="265" y1="218" x2="325" y2="205" stroke="#1e1e1e" stroke-width="3" stroke-dasharray="6,4"/>
+                        <line x1="265" y1="233" x2="325" y2="220" stroke="#1e1e1e" stroke-width="3" stroke-dasharray="6,4"/>
+                        <line x1="265" y1="248" x2="325" y2="235" stroke="#1e1e1e" stroke-width="3" stroke-dasharray="6,4"/>
+                        <!-- Star & Rays -->
+                        <polygon points="250,140 254,152 267,152 256,160 260,172 250,164 240,172 244,160 233,152 246,152" fill="#f59e0b"/>
+                        <line x1="250" y1="176" x2="250" y2="190" stroke="#f59e0b" stroke-width="4"/>
+                        <line x1="235" y1="178" x2="225" y2="190" stroke="#f59e0b" stroke-width="4"/>
+                        <line x1="265" y1="178" x2="275" y2="190" stroke="#f59e0b" stroke-width="4"/>
+                        <line x1="225" y1="170" x2="212" y2="178" stroke="#f59e0b" stroke-width="4"/>
+                        <line x1="275" y1="170" x2="288" y2="178" stroke="#f59e0b" stroke-width="4"/>
+                        <!-- Curved Text (SD ISLAM SULTAN AGUNG 4) -->
+                        <path id="text-path" d="M 85,250 A 175,175 0 0,1 415,250" fill="none"/>
+                        <text font-family="Inter, sans-serif" font-weight="900" font-size="28" fill="#ffffff">
+                            <textPath href="#text-path" startOffset="50%" text-anchor="middle">
+                                SD ISLAM SULTAN AGUNG 4
+                            </textPath>
+                        </text>
+                        <!-- Bottom Subtext -->
+                        <text x="250" y="390" font-family="Inter, sans-serif" font-weight="800" font-size="20" fill="#22c55e" text-anchor="middle">YAYASAN BADAN WAKAF</text>
+                        <text x="250" y="415" font-family="Inter, sans-serif" font-weight="800" font-size="20" fill="#22c55e" text-anchor="middle">SULTAN AGUNG</text>
+                        <text x="250" y="440" font-family="Inter, sans-serif" font-weight="800" font-size="20" fill="#22c55e" text-anchor="middle">SEMARANG</text>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg sm:text-xl leading-tight tracking-wide">SD ISLAM SULTAN AGUNG 4 SEMARANG</h1>
+                    <p class="text-xs text-blue-200">Agenda Kegiatan Sekolah T.A. 2026/2027</p>
+                </div>
+            </div>
+
+            <!-- Action Controls & Admin Login Button -->
+            <div class="flex items-center space-x-2 sm:space-x-3" id="nav-actions">
+                <!-- Dynamic injected via JS -->
+            </div>
+        </div>
+    </header>
+
+    <!-- DRAFT MODE BANNER FOR ADMIN -->
+    <div id="admin-banner" class="hidden bg-amber-500 text-white text-xs sm:text-sm py-2 px-4 text-center font-medium shadow-inner flex justify-between items-center px-6 no-print">
+        <span><i class="fa-solid fa-pen-to-square mr-2"></i> Mode Admin (Pengeditan Aktif). Klik <strong>"Publikasikan"</strong> agar perubahan terlihat oleh Orang Tua/Wali Murid.</span>
+        <div class="flex gap-2">
+            <button onclick="publishData()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1 rounded text-xs transition font-bold shadow">
+                <i class="fa-solid fa-cloud-arrow-up mr-1"></i> Publikasikan
+            </button>
+            <button onclick="toggleAdminPreview()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1 rounded text-xs transition">
+                <i class="fa-solid fa-eye mr-1"></i> Pratinjau Publik
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- SEARCH & FILTER TOOLBAR (Public & Admin View) -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row justify-between items-center gap-4 no-print">
+            
+            <!-- Period Navigation Tabs -->
+            <div class="flex flex-wrap gap-2 w-full md:w-auto" id="period-tabs">
+                <!-- Tabs rendered dynamically -->
+            </div>
+
+            <!-- Search and Filter Controls -->
+            <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                <div class="relative flex-1 md:w-56">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" id="search-input" placeholder="Cari kegiatan..." 
+                           oninput="handleSearch(this.value)"
+                           class="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sula-blue">
+                </div>
+
+                <div class="w-auto">
+                    <select id="class-filter" onchange="handleClassFilter(this.value)" 
+                            class="py-2 px-3 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sula-blue">
+                        <option value="ALL">Semua Kelas</option>
+                        <option value="1">Kelas 1</option>
+                        <option value="2">Kelas 2</option>
+                        <option value="3">Kelas 3</option>
+                        <option value="4">Kelas 4</option>
+                        <option value="5">Kelas 5</option>
+                        <option value="6">Kelas 6</option>
+                    </select>
+                </div>
+
+                <!-- Export PDF Buttons -->
+                <div class="relative inline-block text-left">
+                    <button onclick="downloadPDF()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-file-pdf"></i> Unduh PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PRINT/EXPORT HEADER (Visible only in PDF Export Mode) -->
+        <div id="pdf-header" class="hidden print-only mb-6 text-center border-b-2 border-sula-blue pb-4">
+            <div class="flex justify-center items-center gap-3 mb-2">
+                <div class="w-14 h-14">
+                    <svg viewBox="0 0 500 500" class="w-full h-full">
+                        <polygon points="250,30 350,110 480,195 430,320 380,450 250,490 120,450 70,320 20,195 150,110" fill="#1e1e1e" stroke="#f59e0b" stroke-width="14" stroke-linejoin="round"/>
+                        <polygon points="250,45 342,118 462,196 416,312 370,432 250,468 130,432 84,312 38,196 158,118" fill="#1e1e1e" stroke="#1e1e1e" stroke-width="4"/>
+                        <path d="M 125,320 A 130,130 0 0,1 375,320" fill="none" stroke="#22c55e" stroke-width="12" stroke-linecap="round"/>
+                        <path d="M 125,320 L 375,320" fill="none" stroke="#22c55e" stroke-width="8"/>
+                        <circle cx="170" cy="335" r="14" fill="none" stroke="#22c55e" stroke-width="7"/>
+                        <circle cx="210" cy="340" r="14" fill="none" stroke="#22c55e" stroke-width="7"/>
+                        <circle cx="250" cy="345" r="22" fill="none" stroke="#22c55e" stroke-width="9"/>
+                        <circle cx="290" cy="340" r="14" fill="none" stroke="#22c55e" stroke-width="7"/>
+                        <circle cx="330" cy="335" r="14" fill="none" stroke="#22c55e" stroke-width="7"/>
+                        <path d="M 250,290 C 210,245 160,240 160,240 L 160,190 C 160,190 210,195 250,230 C 290,195 340,190 340,190 L 340,240 C 340,240 290,245 250,290 Z" fill="#ffffff" stroke="#1e1e1e" stroke-width="3"/>
+                        <path d="M 250,230 L 250,290" stroke="#1e1e1e" stroke-width="4"/>
+                        <line x1="175" y1="205" x2="235" y2="218" stroke="#1e1e1e" stroke-width="3" stroke-dasharray="6,4"/>
+                        <line x1="175" y1="220" x2="235" y2="233" stroke="#1e1e1e" stroke-width="3" stroke-dasharray="6,4"/>
+                        <line x1="175" y1="235" x2="235" y2="248" stroke="#1e1e1e" stroke-width="3" stroke-dasharray="6,4"/>
+                        <line x1="265" y1="218" x2="325" y2="205" stroke="#1e1e1e" stroke-width="3" stroke-dasharray="6,4"/>
+                        <line x1="265" y1="233" x2="325" y2="220" stroke="#1e1e1e" stroke-width="3" stroke-dasharray="6,4"/>
+                        <line x1="265" y1="248" x2="325" y2="235" stroke="#1e1e1e" stroke-width="3" stroke-dasharray="6,4"/>
+                        <polygon points="250,140 254,152 267,152 256,160 260,172 250,164 240,172 244,160 233,152 246,152" fill="#f59e0b"/>
+                        <path id="pdf-text-path" d="M 85,250 A 175,175 0 0,1 415,250" fill="none"/>
+                        <text font-family="Inter, sans-serif" font-weight="900" font-size="28" fill="#ffffff">
+                            <textPath href="#pdf-text-path" startOffset="50%" text-anchor="middle">SD ISLAM SULTAN AGUNG 4</textPath>
+                        </text>
+                        <text x="250" y="390" font-family="Inter, sans-serif" font-weight="800" font-size="20" fill="#22c55e" text-anchor="middle">YAYASAN BADAN WAKAF</text>
+                        <text x="250" y="415" font-family="Inter, sans-serif" font-weight="800" font-size="20" fill="#22c55e" text-anchor="middle">SULTAN AGUNG</text>
+                        <text x="250" y="440" font-family="Inter, sans-serif" font-weight="800" font-size="20" fill="#22c55e" text-anchor="middle">SEMARANG</text>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-sula-blue">SD ISLAM SULTAN AGUNG 4 SEMARANG</h1>
+                    <h2 class="text-lg font-semibold text-slate-700">AGENDA KEGIATAN SEKOLAH</h2>
+                    <p class="text-sm text-slate-500">Tahun Ajaran <span class="school-year-text">2026/2027</span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTENT AREA TO BE PRINTED OR VIEWED -->
+        <div id="agenda-render-area" class="space-y-8">
+            <!-- Dynamic Main Content (Agenda Tables, NB, Lain-Lain) -->
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-800 text-slate-300 py-6 text-center text-xs border-t border-slate-700 no-print mt-12">
+        <div class="max-w-7xl mx-auto px-4">
+            <p class="font-semibold text-sm mb-1 text-slate-200">SD ISLAM SULTAN AGUNG 4 SEMARANG</p>
+            <p class="mb-2">Jl. Kaligawe Raya Km. 4 Semarang | Informasi Agenda & Kegiatan Resmi</p>
+            <p class="text-slate-500">&copy; 2026/2027 SD Islam Sultan Agung 4. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- MODAL LOGIN ADMIN -->
+    <div id="login-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-md w-full p-6 sm:p-8 relative">
+            <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            <div class="text-center mb-6">
+                <div class="w-12 h-12 bg-sula-blue/10 text-sula-blue rounded-full flex items-center justify-center mx-auto mb-3 text-xl">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800">Login Admin / Guru</h3>
+                <p class="text-xs text-slate-500 mt-1">Masuk untuk mengelola data agenda sekolah</p>
+            </div>
+
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Username</label>
+                    <input type="text" id="username" required placeholder="Masukkan username"
+                           class="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sula-blue">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Kunci Akses / Password</label>
+                    <input type="password" id="password" required placeholder="Masukkan password"
+                           class="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sula-blue">
+                </div>
+                <div id="login-error" class="hidden text-red-600 bg-red-50 text-xs p-3 rounded-lg border border-red-200">
+                    <!-- Error message injected here -->
+                </div>
+                <button type="submit" class="w-full bg-sula-blue hover:bg-sula-dark text-white font-medium py-2.5 rounded-lg text-sm transition shadow-md">
+                    <i class="fa-solid fa-right-to-bracket mr-2"></i> Masuk Dashboard
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT APPLICATION LOGIC -->
+    <script>
+        // Core Logic Application
+        function getCurrentData() {
+            const app = window.SULA_APP;
+            if (app.isAdmin && !app.isPreviewMode) {
+                return app.draftData || app.initialData;
+            }
+            return app.publishedData || app.initialData;
+        }
+
+        function renderNavActions() {
+            const container = document.getElementById('nav-actions');
+            const app = window.SULA_APP;
+
+            if (app.isAdmin) {
+                container.innerHTML = `
+                    <button onclick="addNewPeriodPrompt()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-1 shadow-sm">
+                        <i class="fa-solid fa-plus"></i> Periode Baru
+                    </button>
+                    <button onclick="publishData()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-1 shadow-sm">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Publikasikan
+                    </button>
+                    <button onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-1">
+                        <i class="fa-solid fa-right-from-bracket"></i> Logout
+                    </button>
+                `;
+                document.getElementById('admin-banner').classList.remove('hidden');
+            } else {
+                container.innerHTML = `
+                    <button onclick="openLoginModal()" class="bg-white/10 hover:bg-white/20 text-white border border-white/30 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition flex items-center gap-1">
+                        <i class="fa-solid fa-user-gear"></i> Area Admin / Guru
+                    </button>
+                `;
+                document.getElementById('admin-banner').classList.add('hidden');
+            }
+        }
+
+        function renderPeriodTabs() {
+            const data = getCurrentData();
+            const container = document.getElementById('period-tabs');
+            const app = window.SULA_APP;
+
+            let html = '';
+            // Option to show ALL periods
+            const isAllActive = app.activeTab === 'ALL';
+            html += `
+                <button onclick="switchTab('ALL')" 
+                    class="px-4 py-2 rounded-lg text-sm font-semibold transition ${isAllActive ? 'bg-sula-blue text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
+                    Semua Periode
+                </button>
+            `;
+
+            data.periods.forEach(period => {
+                const isActive = app.activeTab === period;
+                html += `
+                    <button onclick="switchTab('${period}')" 
+                        class="px-4 py-2 rounded-lg text-sm font-semibold transition ${isActive ? 'bg-sula-blue text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
+                        ${period}
+                    </button>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function switchTab(tab) {
+            window.SULA_APP.activeTab = tab;
+            renderPeriodTabs();
+            renderMainContent();
+        }
+
+        function handleSearch(query) {
+            window.SULA_APP.searchQuery = query.toLowerCase();
+            renderMainContent();
+        }
+
+        function handleClassFilter(cls) {
+            window.SULA_APP.filterClass = cls;
+            renderMainContent();
+        }
+
+        function renderMainContent() {
+            const data = getCurrentData();
+            const app = window.SULA_APP;
+            const container = document.getElementById('agenda-render-area');
+            
+            let periodsToRender = app.activeTab === 'ALL' ? data.periods : [app.activeTab];
+            let html = '';
+
+            periodsToRender.forEach(period => {
+                let items = data.agendas[period] || [];
+
+                // Filter logic
+                if (app.searchQuery) {
+                    items = items.filter(item => 
+                        item.kegiatan.toLowerCase().includes(app.searchQuery) ||
+                        item.keterangan.toLowerCase().includes(app.searchQuery) ||
+                        item.tgl.toLowerCase().includes(app.searchQuery)
+                    );
+                }
+
+                if (app.filterClass !== 'ALL') {
+                    items = items.filter(item => {
+                        if (!item.kelas) return false;
+                        // Match class string e.g. "1-6" or "4-6" or "5"
+                        return item.kelas.includes(app.filterClass) || item.kelas === '1-6';
+                    });
+                }
+
+                html += renderPeriodSection(period, items);
+            });
+
+            // Always render Lain-Lain Section at the bottom
+            html += renderLainLainSection(data.lainLain);
+
+            container.innerHTML = html;
+        }
+
+        function renderPeriodSection(period, items) {
+            const data = getCurrentData();
+            const app = window.SULA_APP;
+            const nbList = data.nb[period] || [];
+
+            let rowsHtml = '';
+
+            if (items.length === 0) {
+                rowsHtml = `
+                    <tr>
+                        <td colspan="6" class="text-center py-6 text-slate-400 italic">Tidak ada agenda kegiatan yang cocok dengan kriteria.</td>
+                    </tr>
+                `;
+            } else {
+                items.forEach((item, index) => {
+                    if (app.isAdmin && !app.isPreviewMode) {
+                        rowsHtml += `
+                            <tr class="hover:bg-amber-50/40 transition border-b border-slate-200">
+                                <td class="px-3 py-2 text-center text-xs font-mono text-slate-400">
+                                    <div class="flex items-center justify-center gap-1">
+                                        <button onclick="moveRow('${period}', ${index}, -1)" title="Naik" class="text-slate-400 hover:text-blue-600"><i class="fa-solid fa-chevron-up"></i></button>
+                                        <button onclick="moveRow('${period}', ${index}, 1)" title="Turun" class="text-slate-400 hover:text-blue-600"><i class="fa-solid fa-chevron-down"></i></button>
+                                    </div>
+                                </td>
+                                <td class="px-3 py-2 text-sm text-center font-medium">
+                                    <input type="text" value="${item.no || ''}" onchange="updateAgendaField('${period}', '${item.id}', 'no', this.value)"
+                                           class="w-full text-center bg-white border border-slate-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-sula-blue">
+                                </td>
+                                <td class="px-3 py-2 text-sm font-semibold text-slate-800">
+                                    <input type="text" value="${item.tgl || ''}" onchange="updateAgendaField('${period}', '${item.id}', 'tgl', this.value)"
+                                           class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-sula-blue">
+                                </td>
+                                <td class="px-3 py-2 text-sm">
+                                    <textarea onchange="updateAgendaField('${period}', '${item.id}', 'kegiatan', this.value)" rows="1"
+                                              class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-sula-blue font-medium">${item.kegiatan || ''}</textarea>
+                                </td>
+                                <td class="px-3 py-2 text-sm text-slate-600">
+                                    <textarea onchange="updateAgendaField('${period}', '${item.id}', 'keterangan', this.value)" rows="1"
+                                              class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-sula-blue">${item.keterangan || ''}</textarea>
+                                </td>
+                                <td class="px-3 py-2 text-sm text-center">
+                                    <input type="text" value="${item.kelas || ''}" onchange="updateAgendaField('${period}', '${item.id}', 'kelas', this.value)"
+                                           class="w-full text-center bg-white border border-slate-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-sula-blue font-semibold">
+                                </td>
+                                <td class="px-3 py-2 text-center">
+                                    <button onclick="deleteAgendaRow('${period}', '${item.id}')" class="text-red-500 hover:text-red-700 p-1">
+                                        <i class="fa-solid fa-trash-can text-sm"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    } else {
+                        rowsHtml += `
+                            <tr class="hover:bg-slate-50 transition border-b border-slate-200">
+                                <td class="px-3 py-3 text-center text-sm font-semibold text-slate-600">${item.no || '-'}</td>
+                                <td class="px-3 py-3 text-sm font-bold text-sula-blue whitespace-nowrap">${item.tgl || '-'}</td>
+                                <td class="px-4 py-3 text-sm font-medium text-slate-800">${item.kegiatan || '-'}</td>
+                                <td class="px-4 py-3 text-sm text-slate-600">${item.keterangan || '-'}</td>
+                                <td class="px-3 py-3 text-center text-sm font-semibold text-amber-700 whitespace-nowrap">
+                                    ${item.kelas ? `<span class="bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full text-xs">${item.kelas}</span>` : '-'}
+                                </td>
+                            </tr>
+                        `;
+                    }
+                });
+            }
+
+            // NB rendering
+            let nbHtml = '';
+            nbList.forEach((note, idx) => {
+                if (app.isAdmin && !app.isPreviewMode) {
+                    nbHtml += `
+                        <li class="flex items-center gap-2 mb-2">
+                            <i class="fa-solid fa-circle-small text-xs text-amber-500"></i>
+                            <input type="text" value="${note}" onchange="updateNBItem('${period}', ${idx}, this.value)"
+                                   class="flex-1 bg-white border border-slate-300 rounded px-3 py-1 text-xs focus:ring-1 focus:ring-sula-blue">
+                            <button onclick="deleteNBItem('${period}', ${idx})" class="text-red-500 hover:text-red-700">
+                                <i class="fa-solid fa-xmark text-sm"></i>
+                            </button>
+                        </li>
+                    `;
+                } else {
+                    nbHtml += `<li class="text-sm text-slate-700 flex items-start gap-2"><span class="text-sula-gold font-bold">•</span> <span>${note}</span></li>`;
+                }
+            });
+
+            return `
+                <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden transition">
+                    <div class="bg-sula-blue text-white px-6 py-4 flex flex-wrap justify-between items-center gap-2">
+                        <div>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-amber-300">AGENDA BULAN</span>
+                            <h2 class="text-xl font-bold">${period}</h2>
+                        </div>
+                        ${app.isAdmin && !app.isPreviewMode ? `
+                            <div class="flex gap-2">
+                                <button onclick="addAgendaRow('${period}')" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-3 py-1.5 rounded font-semibold transition">
+                                    <i class="fa-solid fa-plus mr-1"></i> Tambah Kegiatan
+                                </button>
+                                <button onclick="deletePeriod('${period}')" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded font-semibold transition">
+                                    <i class="fa-solid fa-trash mr-1"></i> Hapus Periode
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Table Wrapper -->
+                    <div class="table-container overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                                    ${app.isAdmin && !app.isPreviewMode ? '<th class="px-2 py-3 text-center w-10">Urut</th>' : ''}
+                                    <th class="px-3 py-3 text-center w-16">NO</th>
+                                    <th class="px-3 py-3 w-28">TGL</th>
+                                    <th class="px-4 py-3 w-1/3">KEGIATAN</th>
+                                    <th class="px-4 py-3">KETERANGAN</th>
+                                    <th class="px-3 py-3 text-center w-28">KELAS</th>
+                                    ${app.isAdmin && !app.isPreviewMode ? '<th class="px-3 py-3 text-center w-16">Aksi</th>' : ''}
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200">
+                                ${rowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Catatan / NB Section -->
+                    <div class="bg-amber-50/60 p-5 border-t border-amber-200/60">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="font-bold text-amber-900 text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-triangle-exclamation text-amber-600"></i> NB (CATATAN PENTING) ${period}
+                            </h4>
+                            ${app.isAdmin && !app.isPreviewMode ? `
+                                <button onclick="addNBItem('${period}')" class="text-xs bg-amber-200 hover:bg-amber-300 text-amber-900 px-2.5 py-1 rounded font-medium">
+                                    <i class="fa-solid fa-plus mr-1"></i> Tambah NB
+                                </button>
+                            ` : ''}
+                        </div>
+                        <ul class="space-y-1.5">
+                            ${nbHtml || '<li class="text-xs italic text-slate-400">Tidak ada catatan khusus.</li>'}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderLainLainSection(items) {
+            const app = window.SULA_APP;
+            let listHtml = '';
+
+            items.forEach((item, idx) => {
+                if (app.isAdmin && !app.isPreviewMode) {
+                    listHtml += `
+                        <div class="flex items-center gap-2 mb-2">
+                            <i class="fa-solid fa-check text-emerald-600 text-sm"></i>
+                            <input type="text" value="${item}" onchange="updateLainLainItem(${idx}, this.value)"
+                                   class="flex-1 bg-white border border-slate-300 rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-sula-blue">
+                            <button onclick="deleteLainLainItem(${idx})" class="text-red-500 hover:text-red-700">
+                                <i class="fa-solid fa-trash-can text-sm"></i>
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    listHtml += `
+                        <li class="flex items-start gap-3 bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                            <div class="bg-emerald-100 text-emerald-700 rounded-full w-5 h-5 flex items-center justify-center shrink-0 text-xs font-bold mt-0.5">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                            <span class="text-slate-700 text-sm font-medium">${item}</span>
+                        </li>
+                    `;
+                }
+            });
+
+            return `
+                <div class="bg-slate-100 rounded-xl p-6 border border-slate-300 shadow-sm mt-8">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-sula-blue text-white p-2 rounded-lg">
+                                <i class="fa-solid fa-circle-info"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-lg">LAIN-LAIN</h3>
+                                <p class="text-xs text-slate-500">Informasi dan Ketentuan Tambahan Sekolah</p>
+                            </div>
+                        </div>
+                        ${app.isAdmin && !app.isPreviewMode ? `
+                            <button onclick="addLainLainItem()" class="bg-sula-blue hover:bg-sula-dark text-white text-xs px-3 py-1.5 rounded font-semibold transition">
+                                <i class="fa-solid fa-plus mr-1"></i> Tambah Poin
+                            </button>
+                        ` : ''}
+                    </div>
+
+                    ${app.isAdmin && !app.isPreviewMode ? `
+                        <div class="space-y-1">${listHtml}</div>
+                    ` : `
+                        <ul class="grid grid-cols-1 md:grid-cols-2 gap-3">${listHtml}</ul>
+                    `}
+                </div>
+            `;
+        }
+
+        // EDITING HANDLERS (ADMIN DRAFT MUTATIONS)
+        function updateAgendaField(period, id, field, value) {
+            const draft = window.SULA_APP.draftData;
+            const item = draft.agendas[period].find(i => i.id === id);
+            if (item) {
+                item[field] = value;
+                saveDraftLocally();
+            }
+        }
+
+        function addAgendaRow(period) {
+            const draft = window.SULA_APP.draftData;
+            const newId = Date.now().toString();
+            const nextNo = (draft.agendas[period].length + 1).toString();
+
+            draft.agendas[period].push({
+                id: newId,
+                no: nextNo,
+                tgl: '',
+                kegiatan: 'Kegiatan Baru',
+                keterangan: '',
+                kelas: '1-6'
+            });
+
+            saveDraftLocally();
+            renderMainContent();
+        }
+
+        function deleteAgendaRow(period, id) {
+            const draft = window.SULA_APP.draftData;
+            draft.agendas[period] = draft.agendas[period].filter(i => i.id !== id);
+            saveDraftLocally();
+            renderMainContent();
+        }
+
+        function moveRow(period, index, direction) {
+            const draft = window.SULA_APP.draftData;
+            const list = draft.agendas[period];
+            const targetIndex = index + direction;
+
+            if (targetIndex >= 0 && targetIndex < list.length) {
+                const temp = list[index];
+                list[index] = list[targetIndex];
+                list[targetIndex] = temp;
+                saveDraftLocally();
+                renderMainContent();
+            }
+        }
+
+        function addNBItem(period) {
+            const draft = window.SULA_APP.draftData;
+            if (!draft.nb[period]) draft.nb[period] = [];
+            draft.nb[period].push("Catatan baru...");
+            saveDraftLocally();
+            renderMainContent();
+        }
+
+        function updateNBItem(period, index, value) {
+            const draft = window.SULA_APP.draftData;
+            draft.nb[period][index] = value;
+            saveDraftLocally();
+        }
+
+        function deleteNBItem(period, index) {
+            const draft = window.SULA_APP.draftData;
+            draft.nb[period].splice(index, 1);
+            saveDraftLocally();
+            renderMainContent();
+        }
+
+        function addLainLainItem() {
+            const draft = window.SULA_APP.draftData;
+            draft.lainLain.push("Poin informasi baru...");
+            saveDraftLocally();
+            renderMainContent();
+        }
+
+        function updateLainLainItem(index, value) {
+            const draft = window.SULA_APP.draftData;
+            draft.lainLain[index] = value;
+            saveDraftLocally();
+        }
+
+        function deleteLainLainItem(index) {
+            const draft = window.SULA_APP.draftData;
+            draft.lainLain.splice(index, 1);
+            saveDraftLocally();
+            renderMainContent();
+        }
+
+        function addNewPeriodPrompt() {
+            const name = prompt("Masukkan Nama Periode / Bulan Baru (Contoh: FEBRUARI):");
+            if (name && name.trim()) {
+                const cleanName = name.trim().toUpperCase();
+                const draft = window.SULA_APP.draftData;
+                if (!draft.periods.includes(cleanName)) {
+                    draft.periods.push(cleanName);
+                    draft.agendas[cleanName] = [];
+                    draft.nb[cleanName] = [];
+                    window.SULA_APP.activeTab = cleanName;
+                    saveDraftLocally();
+                    renderPeriodTabs();
+                    renderMainContent();
+                } else {
+                    alert("Periode tersebut sudah ada!");
+                }
+            }
+        }
+
+        function deletePeriod(period) {
+            if (confirm(`Apakah Anda yakin ingin menghapus seluruh agenda periode ${period}?`)) {
+                const draft = window.SULA_APP.draftData;
+                draft.periods = draft.periods.filter(p => p !== period);
+                delete draft.agendas[period];
+                delete draft.nb[period];
+                window.SULA_APP.activeTab = 'ALL';
+                saveDraftLocally();
+                renderPeriodTabs();
+                renderMainContent();
+            }
+        }
+
+        function saveDraftLocally() {
+            if (!window.SULA_APP.isFirebaseAvailable) {
+                localStorage.setItem('sula4_agenda_data', JSON.stringify({
+                    published: window.SULA_APP.publishedData,
+                    draft: window.SULA_APP.draftData
+                }));
+            }
+        }
+
+        // PUBLISH TO DATABASE / PUBLIC VIEW
+        async function publishData() {
+            const app = window.SULA_APP;
+            app.publishedData = JSON.parse(JSON.stringify(app.draftData));
+
+            if (app.isFirebaseAvailable) {
+                try {
+                    const docRef = doc(app.db, 'artifacts', app.appId, 'public', 'data', 'agendaData', 'main');
+                    await setDoc(docRef, {
+                        published: app.publishedData,
+                        draft: app.draftData
+                    });
+                    showNotification("Berhasil mempublikasikan data ke Halaman Publik Orang Tua!");
+                } catch (e) {
+                    console.error("Error publishing to Firestore:", e);
+                    showNotification("Gagal mempublikasikan ke Firestore, tersimpan lokal.", true);
+                }
+            } else {
+                saveDraftLocally();
+                showNotification("Berhasil dipublikasikan (Mode Lokal)!");
+            }
+            renderMainContent();
+        }
+
+        function toggleAdminPreview() {
+            window.SULA_APP.isPreviewMode = !window.SULA_APP.isPreviewMode;
+            renderMainContent();
+        }
+
+        // LOGIN / LOGOUT AUTHENTICATION LOGIC
+        function openLoginModal() {
+            document.getElementById('login-modal').classList.remove('hidden');
+            document.getElementById('login-error').classList.add('hidden');
+        }
+
+        function closeLoginModal() {
+            document.getElementById('login-modal').classList.add('hidden');
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('username').value.trim();
+            const p = document.getElementById('password').value.trim();
+
+            // Credentials check
+            if (u === 'Guru' && p === 'GuruSula04') {
+                window.SULA_APP.isAdmin = true;
+                window.SULA_APP.isPreviewMode = false;
+                closeLoginModal();
+                renderNavActions();
+                renderMainContent();
+                showNotification("Selamat datang, Admin Guru SD Islam Sultan Agung 4!");
+            } else {
+                const errDiv = document.getElementById('login-error');
+                errDiv.textContent = "Username atau kunci akses salah. Silakan coba kembali.";
+                errDiv.classList.remove('hidden');
+            }
+        }
+
+        function handleLogout() {
+            window.SULA_APP.isAdmin = false;
+            window.SULA_APP.isPreviewMode = false;
+            renderNavActions();
+            renderMainContent();
+            showNotification("Anda telah keluar dari Dashboard Admin.");
+        }
+
+        // PDF GENERATION HANDLER
+        function downloadPDF() {
+            const element = document.getElementById('agenda-render-area');
+            const pdfHeader = document.getElementById('pdf-header');
+            
+            // Show print header
+            pdfHeader.classList.remove('hidden');
+
+            const opt = {
+                margin:       [0.5, 0.5, 0.5, 0.5],
+                filename:     `Agenda_SD_Islam_Sultan_Agung_4_${window.SULA_APP.activeTab}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Generate PDF
+            html2pdf().set(opt).from(document.body).save().then(() => {
+                pdfHeader.classList.add('hidden');
+            });
+        }
+
+        function showNotification(msg, isError = false) {
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl shadow-2xl text-white text-sm font-medium flex items-center gap-2 ${isError ? 'bg-red-600' : 'bg-slate-900'}`;
+            toast.innerHTML = `<i class="fa-solid ${isError ? 'fa-circle-exclamation' : 'fa-circle-check text-emerald-400'}"></i> ${msg}`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 3500);
+        }
+
+        // Initial Execution Render
+        function renderApp() {
+            renderNavActions();
+            renderPeriodTabs();
+            renderMainContent();
+        }
+    </script>
+</body>
+</html>
